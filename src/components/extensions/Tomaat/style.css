@@ -1,0 +1,79 @@
+.container {
+  padding: 0;
+}
+
+.container * {
+  user-select: none;
+}
+
+.card {
+  padding: 8px 16px;
+}
+
+.heading {
+  padding: 8px 0;
+}
+
+.divider {
+  margin-bottom: 16px;
+}
+
+.noTopPadding {
+  padding-top: 0;
+}
+
+.lineTopPadding {
+  padding-top: 5px;
+}
+
+.noSelect {
+  user-select: none;
+}
+
+#carousel {
+  padding: 0px 10em 0px 10em;
+}
+
+article {
+    display: inline-block;
+    width: 11em;
+    height: 18em;
+    border-radius: 5%;
+    background: rgba(63, 191, 63, 0.2);
+    text-align: center;
+    padding: 0 1em 3em 1em;
+    margin: auto;
+    white-space: normal;
+    opacity: 1.0;
+    -moz-transition: opacity 0.75s ease-in-out;
+    -webkit-transition: opacity 0.75s ease-in-out;
+    -ms-transition: opacity 0.75s ease-in-out;
+    transition: opacity 0.75s ease-in-out;
+}
+
+article.loading {
+    opacity: 0;
+}
+
+article .image {
+    position: relative;
+    left: -1em;
+    top: 0;
+    width: auto;
+    margin-right: -2em;
+    margin-bottom: 3em;
+}
+
+article header {
+    text-align: center;
+    height: 6em;
+    color: #35b882;
+    text-shadow: 0 0 0.5px rgba(53, 184, 130, 0.25);
+}
+
+article p {
+    text-align: center;
+    height: 5em;
+    color: #000;
+    text-shadow: 0 0 0.5px rgba(53, 184, 130, 0.25);
+}

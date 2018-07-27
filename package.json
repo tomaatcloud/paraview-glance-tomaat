@@ -40,6 +40,7 @@
   },
   "author": "Kitware",
   "dependencies": {
+    "axios": "^0.18.0",
     "itk": "9.1.1",
     "material-design-icons-iconfont": "3.0.3",
     "mousetrap": "^1.6.2",

@@ -1,0 +1,18 @@
+<v-expansion-panel expand>
+  <v-expansion-panel-content
+    :class="$style.applicationsPanel"
+    :value="true"
+  >
+    <div
+      slot="header"
+      :class="$style.applicationHeader"
+    >
+      TOMAAT
+    </div>
+    <v-card :class="$style.datasetControls">
+      <v-expansion-panel expand>
+        <tomaat />
+      </v-expansion-panel>
+    </v-card>
+  </v-expansion-panel-content>
+</v-expansion-panel>

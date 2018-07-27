@@ -1,0 +1,155 @@
+<v-expansion-panel>
+  <v-expansion-panel-content>
+    <div
+      :class="$style.subpanelHeader"
+      slot="header"
+    >
+      <v-icon>forward</v-icon>
+      <span class="body-2">Direct Connection to Server</span>
+    </div>
+    <v-card flat :class="$style.block">
+      <v-card-text>
+        <v-layout row wrap>
+          <v-text-field
+            :class="$style.noTopPadding"
+            placeholder="http://127.0.0.1:8001"
+            hide-details
+            type="text"
+            v-model="directConnectionURL"
+          />
+          <v-btn flat icon color="primary" dark v-on:click.native="connectDirectly">
+            <v-icon>check_circle</v-icon>
+          </v-btn>
+        </v-layout>
+      </v-card-text>
+    </v-card>
+  </v-expansion-panel-content>
+
+  <v-expansion-panel-content>
+    <div
+      :class="$style.subpanelHeader"
+      slot="header"
+    >
+      <v-icon>language</v-icon>
+      <span class="body-2">Choose Server from Public List</span>
+    </div>
+    <v-card flat :class="$style.block">
+      <v-card-text>
+        <v-layout row wrap>
+          <v-text-field
+          :class="$style.noTopPadding"
+          placeholder="http://tomaat.cloud:8001/discover"
+          hide-details
+          type="text"
+          v-model="publicServerListURL"
+          />
+          <v-btn flat icon color="primary" dark v-on:click.native="loadPublicServerList">
+            <v-icon>arrow_downward</v-icon>
+          </v-btn>
+        </v-layout>
+        <v-layout row child-flex justify-center align-center wrap v-if="currServerIdx >= 0">
+          <v-flex fill-height>
+            <v-btn flat icon v-on:click.native="carouselBackward">
+              <v-icon>keyboard_arrow_left</v-icon>
+            </v-btn>
+          </v-flex>
+          <v-flex fill-width>
+            <article>
+              <v-icon large>dns</v-icon><header>
+              <h3>{{currServer.name}}</h3></header>
+              <p>
+                Task: {{currServer.task}}
+                Modality: {{currServer.modality}}
+                Anatomy: {{currServer.anatomy}}
+              </p>
+              <v-btn color="primary" small dark v-on:click.native="chooseServer">Select
+                <v-icon dark right>check_circle</v-icon>
+              </v-btn>
+            </article>
+          </v-flex>
+          <v-flex fill-height>
+            <v-btn flat icon v-on:click.native="carouselForward">
+              <v-icon>keyboard_arrow_right</v-icon>
+            </v-btn>
+          </v-flex>
+        </v-layout>
+      </v-card-text>
+    </v-card>
+  </v-expansion-panel-content>
+
+  <v-expansion-panel-content>
+    <div
+      :class="$style.subpanelHeader"
+      slot="header"
+    >
+      <v-icon>present_to_all</v-icon>
+      <span class="body-2">Process</span>
+    </div>
+    <v-card flat :class="$style.block">
+      <div>
+        <v-card v-for="(tab, tab_idx) in interfaceComponents">
+
+          <v-card-text v-if="tab.type=='volume'">
+            <div class="text-xs-center">
+              <v-menu offset-y>
+                <v-btn
+                  slot="activator"
+                  v-on:click.native="fetchCurrentData(tab_idx)"
+                >
+                  Select {{tab.text}}
+                </v-btn>
+                <v-list>
+                  <v-list-tile
+                    v-for="(source, data_idx) in tab.currentData"
+                    :key="data_idx">
+                    <v-btn small v-on:click.native="selectData(tab_idx, data_idx)">{{source.getName()}}
+                      <v-icon dark right>insert_drive_file</v-icon>
+                    </v-btn>
+                  </v-list-tile>
+                </v-list>
+              </v-menu>
+            </div>
+          </v-card-text>
+
+          <v-card-text v-if="tab.type=='checkbox'">
+            Select if {{tab.text}}:
+            <v-checkbox :label="tab.destination" v-model="tab.currentSelection"></v-checkbox>
+          </v-card-text>
+
+          <v-card-text v-if="tab.type=='radiobutton'">
+            Choose {{tab.text}}:
+            <v-radio-group v-model="tab.currentSelection" :mandatory="true" v-for="(opt, rdx) in tab.params.options">
+              <v-radio :label="opt" :value="rdx" :key="rdx"></v-radio>
+            </v-radio-group>
+          </v-card-text>
+
+          <v-card-text v-if="tab.type=='slider'">
+            Select {{tab.text}} interval: {{tab.params.min}} - {{tab.params.max}}
+            <v-slider
+              v-model="tab.currentSelection"
+              :min="tab.params.min"
+              :max="tab.params.max"
+              step="tab.params.step"
+            ></v-slider>
+          </v-card-text>
+
+          <v-card-text v-if="tab.type=='terminator'">
+            <div class="text-xs-center">
+              <v-btn
+                slot="activator"
+                color="primary"
+                dark
+                v-on:click.native="sendRequest"
+              >
+                Process
+              </v-btn>
+            </div>
+          </v-card-text>
+
+        </v-card>
+      </div>
+    </v-card>
+  </v-expansion-panel-content>
+
+</v-expansion-panel>
+

@@ -2,10 +2,14 @@
   :class="$style.tabs"
   v-model="activeTab"
 >
-  <v-tab>Datasets</v-tab>
+  <v-tab>Data</v-tab>
+  <v-tab>Apps</v-tab>
   <v-tab>Global</v-tab>
   <v-tab-item>
     <datasets />
+  </v-tab-item>
+  <v-tab-item>
+    <applications />
   </v-tab-item>
   <v-tab-item>
     <global-settings />

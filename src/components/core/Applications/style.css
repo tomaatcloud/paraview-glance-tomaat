@@ -1,0 +1,36 @@
+.applicationPanel {
+  position: relative;
+}
+
+.applicationPanel * {
+  user-select: none;
+}
+
+/* override vuetify */
+.applicationPanel :global(.expansion-panel__header) {
+  user-select: none;
+}
+
+.applicationPanel .applicationControls :global(.expansion-panel__header) {
+  padding: 6px 10px 6px 6px;
+  user-select: none;
+}
+
+:global(.theme--dark) .applicationPanel :global(.expansion-panel__body) {
+  border-top: 1px solid hsla(0,0%,100%,.12);
+}
+
+:global(.theme--light) .applicationPanel :global(.expansion-panel__body) {
+  border-top: 1px solid rgba(0,0,0,.12);
+}
+
+.applicationHeader {
+  position: relative;
+  user-select: none;
+  /* handle overflowing names */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+}
