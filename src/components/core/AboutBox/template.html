@@ -61,4 +61,22 @@
       &copy; {{ new Date().getFullYear() }} — Kitware, Inc.
     </div>
   </v-card-text>
+  <v-card-text>
+    <p class="body-1">
+      <a href="https://kitware.github.io/paraview-glance/">TOMAAT</a>
+      is an open-source software package that allows to deploy volumetric image processing methods in the cloud.
+      It
+      can be used to easily deploy deep learning methods and access them via lightweight clients through a
+        standardized yet flexible interface. Explore our repository on
+      <a href="https://github.com/faustomilletari/TOMAAT">GitHub</a> or get more information from our
+      <a href="https://arxiv.org/abs/1803.06784">paper</a>
+    </p>
+    <v-layout row wrap class="text-xs-center" align-end>
+      <v-flex xs12>
+        <a href="https://tomaat.cloud/">
+          <svg-icon icon="tomaat" :class="$style.aboutIconTomaat" />
+        </a>
+      </v-flex>
+    </v-layout>
+  </v-card-text>
 </v-card>

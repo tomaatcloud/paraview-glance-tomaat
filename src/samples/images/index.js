@@ -10,6 +10,7 @@ import Lysozyme from './lysozyme.jpg';
 import SinglePin from './singlepin.jpg';
 import Skull from './skull.jpg';
 import Tooth from './tooth.jpg';
+import Ultrasound from './ultrasound.jpg';
 
 export default {
   Aneurism,
@@ -21,4 +22,5 @@ export default {
   SinglePin,
   Skull,
   Tooth,
+  Ultrasound,
 };
