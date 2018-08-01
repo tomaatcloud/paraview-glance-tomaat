@@ -4,51 +4,208 @@ import { mapState } from 'vuex';
 
 import ReaderFactory from 'paraview-glance/src/io/ReaderFactory';
 
+import IntTypes from 'itk/IntTypes'
+import FloatTypes from 'itk/FloatTypes'
+import PixelTypes from 'itk/PixelTypes'
+import Image from 'itk/Image'
+import ImageType from 'itk/ImageType'
+import createWebworkerPromise from 'itk/createWebworkerPromise'
+import config from 'itk/itkConfig'
+
+var querystring = require('querystring');
+
+var datatypeTranslation = {
+  "Int8Array": IntTypes.Int8,
+  "Uint8Array": IntTypes.UInt8,
+  "Int16Array": IntTypes.Int16,
+  "Uint16Array": IntTypes.UInt16,
+  "Int32Array": IntTypes.Int16,
+  "Uint32Array": IntTypes.UInt16,
+  "Int64Array": IntTypes.Int16,
+  "Uint64Array": IntTypes.UInt16,
+  "Float32Array": FloatTypes.Float32,
+  "Float64Array": FloatTypes.Float64,
+}
 
 function fetchCurrentData(index) {
-  // this function fetches data list from the scene. good only for volume type
   this.interfaceComponents[index].currentData = this.proxyManager.getSources();
 }
 
-function selectData(index, data) {
-  // this function is good for any interface block type
-  var curr_element = this.interfaceComponents[index];
-  if (curr_element.type == 'volume') {
-    this.interfaceComponents[index].currentSelection = this.interfaceComponents[index].currentData[data].getDataset()
-    console.log(this.interfaceComponents[index].currentSelection)
-    console.log(this.interfaceComponents[index].currentSelection.file)
-  }
-  if (curr_element.type == 'slider') {
-      console.log('slider')
+function parseResponse(responses) {
+  console.log(this)
+  console.log(this.proxyManager)
+  for (var i = 0; i < responses.length; i++) {
+    if (responses[i].type == "PlainText") {
+      alert(responses[i].content, responses[i].label);
     }
-  if (curr_element.type == 'checkbox') {
-     console.log('checkbox')
-  }
-  if (curr_element.type == 'radiobutton') {
-     console.log('radiobutton')
-  }
+    if (responses[i].type == "LabelVolume") {
 
+      var arraybuf = base64ToBuffer(responses[i].content)
+      var blob = new Blob( [arraybuf], { type: 'text/plain' } )
+      var file = new File([blob], "labels" + this.num_total_inferences + ".mha");
+
+      this.Glance.loadFiles([file])
+      .then((readers) => {
+        this.Glance.registerReadersToProxyManager(readers, this.proxyManager);
+      });
+
+    }
+    if (responses[i].type == "VTKMesh") {
+      var arraybuf = base64ToBuffer(responses[i].content)
+      var blob = new Blob( [arraybuf], { type: 'text/plain' } )
+      var file = new File([blob], "labels" + this.num_total_inferences + ".vtk");
+
+      this.Glance.loadFiles([file])
+      .then((readers) => {
+        this.Glance.registerReadersToProxyManager(readers, this.proxyManager);
+      });
+    }
+    if (responses[i].type == "DelayedResponse") {
+       alert('Delayed responses are not supported');
+    }
+    if (responses[i].type == "Fiducials") {
+      alert('Fiducials responses are not supported');
+    }
+  }
 }
 
-//function processDataIntoRequest() {
-//  message = []
-//  for (var i = 0; i < this.interfaceComponents.length; i++) {
-//
-//    if (this.interfaceComponents[i].type == 'volume') {
-//      var dataBuffer = null
-//      message.push({this.interfaceComponents[i].destination: dataBuffer})
-//    }
-//    if (this.interfaceComponents[i].type == 'slider') {
-//      message.push({this.interfaceComponents[i].destination: curr_element.currentSelection})
-//    }
-//    if (this.interfaceComponents[i].type == 'checkbox') {
-//      message.push({this.interfaceComponents[i].destination: curr_element.currentSelection})
-//    }
-//    if (this.interfaceComponents[i].type == 'radiobutton') {
-//      message.push({this.interfaceComponents[i].destination: curr_element.params.options[curr_element.currentSelection]})
-//    }
-//  }
-//}
+function selectData(index, data) {
+  var curr_element = this.interfaceComponents[index];
+  if (curr_element.type == 'volume') {
+    var dataset = this.interfaceComponents[index].currentData[data].getDataset();
+    this.interfaceComponents[index].currentSelection = dataset
+  }
+}
+
+function writeImageArrayBuffer(webWorker, useCompression, image, fileName, mimeType) {
+  let worker = webWorker
+  return createWebworkerPromise('ImageIO', worker)
+    .then(({ webworkerPromise, worker: usedWorker }) => {
+      worker = usedWorker
+      return webworkerPromise.postMessage(
+        {
+          operation: 'writeImage',
+          name: fileName,
+          type: mimeType,
+          image: image,
+          useCompression: useCompression,
+          config: config
+        },
+        [image.data.buffer.slice(0)]
+      ).then(function (buffer, worker) {
+        return Promise.resolve({ buffer, webWorker: worker })
+      })
+    })
+}
+
+function convertVtkToItkImage(vtkImage) {
+  var scalars = vtkImage.getPointData().getScalars()
+  var datatype = scalars.getDataType()
+  var direction = vtkImage.getDirection()
+  console.log(datatypeTranslation[datatype])
+
+  let type = new ImageType(3, datatypeTranslation[datatype], 1, scalars.getNumberOfComponents())
+
+  let image = new Image(type)
+
+  // transposition
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      image.direction.data[i + j * 3] = direction[j + i * 3]
+    }
+  }
+
+  image.origin = vtkImage.getOrigin()
+  image.spacing = vtkImage.getSpacing()
+  image.data = scalars.getData() //.buffer
+  image.size = vtkImage.getDimensions()
+
+  return image
+}
+
+function retrieveImageData(image) {
+  return
+}
+
+var assembleMessage = function(interfaceComponents) {
+  var currMessage = []
+  for (var i = 0; i < interfaceComponents.length; i++) {
+    if (interfaceComponents[i].type == 'volume') {
+      var image = this.convertVtkToItkImage(interfaceComponents[i].currentSelection)
+      var promise = writeImageArrayBuffer(null, true, image, 'hello.mha')
+      currMessage.push(promise)
+    }
+    if (interfaceComponents[i].type == 'slider') {
+      currMessage.push(interfaceComponents[i].currentSelection.toString());
+    }
+    if (interfaceComponents[i].type == 'checkbox') {
+      currMessage.push(interfaceComponents[i].currentSelection)
+    }
+    if (interfaceComponents[i].type == 'radiobutton') {
+      currMessage.push(interfaceComponents[i].params.options[interfaceComponents[i].currentSelection])
+    }
+  }
+
+  return Promise.all(currMessage)
+}
+
+'use strict';
+
+function bufferToBase64(data) {
+    var buf = new Uint8Array(data)
+    var binstr = Array.prototype.map.call(buf, function (ch) {
+        return String.fromCharCode(ch);
+    }).join('');
+    return btoa(binstr);
+}
+
+function base64ToBuffer(base64) {
+    var binary_string =  window.atob(base64);
+    var len = binary_string.length;
+    var bytes = new Uint8Array( len );
+    for (var i = 0; i < len; i++)        {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function sendRequest(currMessage) {
+  var config = {
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+  };
+  axios.post(this.currServer.predictionURL, querystring.stringify(currMessage), config)
+  .then((response) => {
+    this.parseResponse(response.data)
+  })
+  .catch(function (error) {
+    console.log(error);
+  });
+}
+
+function process() {
+  this.assembleMessage(this.interfaceComponents)
+  .then((messages) => {
+    var finalMessage = {}
+    for (var i = 0; i < messages.length; i++) {
+      if (this.interfaceComponents[i].type == 'volume') {
+        var string = bufferToBase64(messages[i].buffer)
+        finalMessage[this.interfaceComponents[i].destination] = string
+      }
+      if (this.interfaceComponents[i].type == 'slider') {
+        finalMessage[this.interfaceComponents[i].destination] = messages[i]
+      }
+      if (this.interfaceComponents[i].type == 'checkbox') {
+        finalMessage[this.interfaceComponents[i].destination] = messages[i]
+      }
+      if (this.interfaceComponents[i].type == 'radiobutton') {
+        finalMessage[this.interfaceComponents[i].destination] = messages[i]
+      }
+    }
+    this.sendRequest(finalMessage)
+    this.num_total_inferences = this.num_total_inferences + 1
+  });
+  alert('Paraview Glance has submitted a request to the prediction server. Results will arrive shortly.')
+}
 
 
 export default {
@@ -61,7 +218,8 @@ export default {
       publicServerList: [],
       serverInterface: [],
       interfaceComponents: [],
-
+      Glance: window.Glance,
+      num_total_inferences: 0,
       currServerIdx: -1,
       currServer: {
         name: null,
@@ -105,7 +263,6 @@ export default {
       if (this.currServerIdx < this.publicServerList.length - 1){
         this.currServerIdx = this.currServerIdx + 1
       }
-      console.log(this.currServerIdx)
       this.renderCarousel()
 
       //ReaderFactory.loadFiles([Blob])
@@ -114,82 +271,79 @@ export default {
       if (this.currServerIdx > 0){
         this.currServerIdx = this.currServerIdx - 1
       }
-      console.log(this.currServerIdx)
       this.renderCarousel()
     },
     chooseServer: function() {
-      this.interfaceComponents = []
-
       axios.get(this.currServer.interfaceURL)
       .then((response) => {
         this.serverInterface = response.data
+        this.interfaceComponents = []
+        for (var i = 0; i < this.serverInterface.length; i++) {
+          if (this.serverInterface[i].type == 'volume') {
+            this.interfaceComponents.push({
+              type: 'volume',
+              text: this.serverInterface[i].destination,
+              params: null,
+              destination: this.serverInterface[i].destination,
+              currentSelection: null,
+              currentData: null
+            })
+          }
+
+          if (this.serverInterface[i].type == 'checkbox') {
+            this.interfaceComponents.push({
+              type: 'checkbox',
+              text: this.serverInterface[i].text,
+              params: null,
+              destination: this.serverInterface[i].destination,
+              currentSelection: false,
+              currentData: null
+              })
+          }
+
+          if (this.serverInterface[i].type == 'slider') {
+            this.interfaceComponents.push({
+              type: 'slider',
+              text: this.serverInterface[i].destination,
+              destination: this.serverInterface[i].destination,
+              params: {
+                min: this.serverInterface[i].minimum,
+                max: this.serverInterface[i].maximum,
+                step: (this.serverInterface[i].maximum - this.serverInterface[i].minimum) / 100,
+              },
+              currentSelection: (this.serverInterface[i].maximum - this.serverInterface[i].minimum) / 2,
+              currentData: null
+            })
+          }
+
+          if (this.serverInterface[i].type == 'radiobutton') {
+            this.interfaceComponents.push({
+              type: 'radiobutton',
+              text: this.serverInterface[i].text,
+              destination: this.serverInterface[i].destination,
+              params: {
+                options: this.serverInterface[i].options,
+              },
+              currentSelection: 0,
+              currentData: null
+            })
+          }
+
+          if (this.serverInterface[i].type == 'fiducials') {
+          }
+        }
+        this.interfaceComponents.push({
+          type: 'terminator',
+          text: null,
+          destination: null,
+          params: null,
+          currentSelection: null,
+          currentData: null
+        })
       })
-      .catch(error => {
+        .catch(error => {
         console.log(error.response)
       });
-      console.log(this.serverInterface)
-      for (var i = 0; i < this.serverInterface.length; i++) {
-        if (this.serverInterface[i].type == 'volume') {
-          this.interfaceComponents.push({
-            type: 'volume',
-            text: this.serverInterface[i].destination,
-            params: null,
-            destination: this.serverInterface[i].destination,
-            currentSelection: null,
-            currentData: null
-          })
-        }
-
-        if (this.serverInterface[i].type == 'checkbox') {
-          this.interfaceComponents.push({
-            type: 'checkbox',
-            text: this.serverInterface[i].text,
-            params: null,
-            destination: this.serverInterface[i].destination,
-            currentSelection: false,
-            currentData: null
-            })
-        }
-
-        if (this.serverInterface[i].type == 'slider') {
-          this.interfaceComponents.push({
-            type: 'slider',
-            text: this.serverInterface[i].destination,
-            destination: this.serverInterface[i].destination,
-            params: {
-              min: this.serverInterface[i].minimum,
-              max: this.serverInterface[i].maximum,
-              step: (this.serverInterface[i].maximum - this.serverInterface[i].minimum) / 100,
-            },
-            currentSelection: (this.serverInterface[i].max - this.serverInterface[i].min) / 2,
-            currentData: null
-          })
-        }
-
-        if (this.serverInterface[i].type == 'radiobutton') {
-          this.interfaceComponents.push({
-            type: 'radiobutton',
-            text: this.serverInterface[i].text,
-            destination: this.serverInterface[i].destination,
-            params: {
-              options: this.serverInterface[i].options,
-            },
-            currentSelection: 0,
-            currentData: null
-          })
-        }
-
-        if (this.serverInterface[i].type == 'fiducials') {
-        }
-      }
-      this.interfaceComponents.push({
-        type: 'terminator',
-        text: null,
-        destination: null,
-        params: null,
-        currentSelection: null,
-        currentData: null
-      })
     },
     renderCarousel: function () {
       this.currServer = {
@@ -203,5 +357,11 @@ export default {
     },
     fetchCurrentData,
     selectData,
+    sendRequest,
+    assembleMessage,
+    process,
+    convertVtkToItkImage,
+    retrieveImageData,
+    parseResponse,
   },
 };
