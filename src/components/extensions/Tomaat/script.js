@@ -32,8 +32,7 @@ function fetchCurrentData(index) {
 }
 
 function parseResponse(responses) {
-  console.log(this)
-  console.log(this.proxyManager)
+  this.status = 'idle'
   for (var i = 0; i < responses.length; i++) {
     if (responses[i].type == "PlainText") {
       alert(responses[i].content, responses[i].label);
@@ -61,10 +60,12 @@ function parseResponse(responses) {
       });
     }
     if (responses[i].type == "DelayedResponse") {
-       alert('Delayed responses are not supported');
+      this.status = 'idle'
+      this.status = 'errorDelayedResponse';
     }
     if (responses[i].type == "Fiducials") {
-      alert('Fiducials responses are not supported');
+      this.status = 'idle'
+      this.status = 'errorFiducialResponse';
     }
   }
 }
@@ -102,7 +103,6 @@ function convertVtkToItkImage(vtkImage) {
   var scalars = vtkImage.getPointData().getScalars()
   var datatype = scalars.getDataType()
   var direction = vtkImage.getDirection()
-  console.log(datatypeTranslation[datatype])
 
   let type = new ImageType(3, datatypeTranslation[datatype], 1, scalars.getNumberOfComponents())
 
@@ -177,8 +177,10 @@ function sendRequest(currMessage) {
   .then((response) => {
     this.parseResponse(response.data)
   })
-  .catch(function (error) {
+  .catch((error) => {
     console.log(error);
+    this.status = 'idle'
+    this.status = 'genericError';
   });
 }
 
@@ -204,7 +206,7 @@ function process() {
     this.sendRequest(finalMessage)
     this.num_total_inferences = this.num_total_inferences + 1
   });
-  alert('Paraview Glance has submitted a request to the prediction server. Results will arrive shortly.')
+  this.status = 'predicting';
 }
 
 
@@ -214,11 +216,11 @@ export default {
     return {
       directConnectionURL: 'http://127.0.0.1:9001',
       publicServerListURL: 'http://tomaat.cloud:8001/discover',
-
       publicServerList: [],
       serverInterface: [],
       interfaceComponents: [],
       Glance: window.Glance,
+      status: 'idle',
       num_total_inferences: 0,
       currServerIdx: -1,
       currServer: {
@@ -233,6 +235,30 @@ export default {
   },
   computed: mapState({
     proxyManager: 'proxyManager',
+    isPredicting: function () {
+      if (this.status == 'predicting') {
+        return true
+      }
+      return false
+    },
+    isErrorDelayedResponse: function () {
+      if (this.status == 'errorDelayedResponse') {
+        return true
+      }
+      return false
+    },
+    isErrorFiducialResponse: function () {
+      if (this.status == 'errorFiducialResponse') {
+        return true
+      }
+      return false
+    },
+    isGenericError: function() {
+    if (this.status == 'genericError') {
+      return true
+    }
+      return false
+    },
   }),
   methods: {
     connectDirectly: function() {
@@ -354,6 +380,9 @@ export default {
         predictionURL: this.publicServerList[this.currServerIdx].prediction_url,
         interfaceURL: this.publicServerList[this.currServerIdx].interface_url,
       }
+    },
+    resetStatus: function () {
+      this.status = 'idle'
     },
     fetchCurrentData,
     selectData,
