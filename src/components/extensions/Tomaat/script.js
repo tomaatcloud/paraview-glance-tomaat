@@ -27,12 +27,19 @@ var datatypeTranslation = {
   "Float64Array": FloatTypes.Float64,
 }
 
+function wait(ms){
+   var start = new Date().getTime();
+   var end = start;
+   while(end < start + ms) {
+     end = new Date().getTime();
+  }
+}
+
 function fetchCurrentData(index) {
   this.interfaceComponents[index].currentData = this.proxyManager.getSources();
 }
 
 function parseResponse(responses) {
-  this.status = 'idle'
   for (var i = 0; i < responses.length; i++) {
     if (responses[i].type == "PlainText") {
       alert(responses[i].content, responses[i].label);
@@ -60,14 +67,29 @@ function parseResponse(responses) {
       });
     }
     if (responses[i].type == "DelayedResponse") {
-      this.status = 'idle'
-      this.status = 'errorDelayedResponse';
+        var reqId = responses[i].request_id
+        var message = {'request_id': reqId}
+        var config = {
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+          };
+        var address = this.currServer.predictionURL.split("/", 3)[2]
+        axios.post('http://' + address + "/responses", querystring.stringify(message), config)
+        .then((response) => {
+            wait(5000)
+            this.parseResponse(response.data)
+        })
+        .catch((error) => {
+          console.log(error);
+          this.status = 'idle'
+          this.status = 'genericError';
+        });
     }
     if (responses[i].type == "Fiducials") {
       this.status = 'idle'
       this.status = 'errorFiducialResponse';
     }
   }
+  this.status = 'idle'
 }
 
 function selectData(index, data) {
