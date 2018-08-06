@@ -40,6 +40,8 @@ function fetchCurrentData(index) {
 }
 
 function parseResponse(responses) {
+  var clear = true
+
   for (var i = 0; i < responses.length; i++) {
     if (responses[i].type == "PlainText") {
       alert(responses[i].content, responses[i].label);
@@ -67,6 +69,8 @@ function parseResponse(responses) {
       });
     }
     if (responses[i].type == "DelayedResponse") {
+        clear = false
+
         var reqId = responses[i].request_id
         var message = {'request_id': reqId}
         var config = {
@@ -89,7 +93,9 @@ function parseResponse(responses) {
       this.status = 'errorFiducialResponse';
     }
   }
-  this.status = 'idle'
+  if (clear == true) {
+    this.status = 'idle'
+  }
 }
 
 function selectData(index, data) {
