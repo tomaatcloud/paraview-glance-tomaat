@@ -32,11 +32,11 @@ function registerReader({
 }
 
 function getReader({ name }) {
-  const ext = name
-    .split('.')
-    .pop()
-    .toLowerCase();
-  return READER_MAPPING[ext];
+  const lowerCaseName = name.toLowerCase();
+  const extToUse = Object.keys(READER_MAPPING).find((ext) =>
+    lowerCaseName.endsWith(ext)
+  );
+  return READER_MAPPING[extToUse];
 }
 
 function listReaders() {
