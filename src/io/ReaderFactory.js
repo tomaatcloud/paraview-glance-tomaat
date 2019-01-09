@@ -18,6 +18,7 @@ function registerReader({
   readMethod,
   parseMethod,
   fileNameMethod,
+  fileSeriesMethod,
   sourceType,
   binary,
 }) {
@@ -27,6 +28,7 @@ function registerReader({
     readMethod: readMethod || binary ? 'readAsArrayBuffer' : 'readAsText',
     parseMethod: parseMethod || binary ? 'parseAsArrayBuffer' : 'parseAsText',
     fileNameMethod,
+    fileSeriesMethod,
     sourceType,
   };
 }
@@ -138,6 +140,42 @@ function loadFiles(files) {
 
 // ----------------------------------------------------------------------------
 
+function loadFileSeries(files, extension, outFileName = '') {
+  return new Promise((resolve, reject) => {
+    if (files.length) {
+      const readerMapping = READER_MAPPING[extension];
+      if (readerMapping) {
+        const {
+          vtkReader,
+          fileSeriesMethod,
+          fileNameMethod,
+          sourceType,
+        } = readerMapping;
+        const reader = vtkReader.newInstance();
+
+        if (fileNameMethod) {
+          reader[fileNameMethod](outFileName);
+        }
+
+        if (fileSeriesMethod) {
+          const ds = reader[fileSeriesMethod](files);
+          Promise.resolve(ds).then((dataset) =>
+            resolve({ dataset, reader, sourceType, name: outFileName })
+          );
+        } else {
+          reject(new Error('No file series method available'));
+        }
+      } else {
+        reject(new Error(`No file series reader mapping for ${extension}`));
+      }
+    } else {
+      resolve(/* empty */);
+    }
+  });
+}
+
+// ----------------------------------------------------------------------------
+
 function downloadDataset(fileName, url, progressCallback) {
   return new Promise((resolve, reject) => {
     const readerMapping = getReader({ name: fileName });
@@ -146,9 +184,7 @@ function downloadDataset(fileName, url, progressCallback) {
       FETCH_DATA[readMethod](url, progressCallback)
         .then((rawData) => {
           if (rawData) {
-            readRawData({ fileName, data: rawData })
-              .then((result) => resolve(result))
-              .catch((error) => reject(error));
+            resolve(new File([rawData], fileName));
           } else {
             throw new Error(`No data for ${fileName}`);
           }
@@ -166,33 +202,82 @@ function registerReadersToProxyManager(readers, proxyManager) {
   for (let i = 0; i < readers.length; i += 1) {
     const { reader, sourceType, name, dataset, metadata } = readers[i];
     if (reader || dataset) {
-      const source = proxyManager.createProxy(
-        'Sources',
-        'TrivialProducer',
-        Object.assign({ name }, metadata)
-      );
+      const needSource =
+        (reader && reader.getOutputData) ||
+        (dataset && dataset.isA && dataset.isA('vtkDataSet'));
+      const source = needSource
+        ? proxyManager.createProxy(
+            'Sources',
+            'TrivialProducer',
+            Object.assign({ name }, metadata)
+          )
+        : null;
       if (dataset && dataset.isA && dataset.isA('vtkDataSet')) {
         source.setInputData(dataset, sourceType);
-      } else if (reader) {
+      } else if (reader && reader.getOutputData) {
         source.setInputAlgorithm(reader, sourceType);
+      } else if (reader && reader.setProxyManager) {
+        reader.setProxyManager(proxyManager);
+      } else {
+        console.error(`No proper reader handler was found for ${name}`);
       }
 
-      source.activate();
+      if (source) {
+        source.activate();
 
-      proxyManager.createRepresentationInAllViews(source);
-      proxyManager.renderAllViews();
+        proxyManager.createRepresentationInAllViews(source);
+        proxyManager.renderAllViews();
+      }
     }
   }
 }
 
 // ----------------------------------------------------------------------------
 
+function importBase64Dataset(
+  fileName,
+  base64String,
+  proxyManager,
+  chunkSize = 512
+) {
+  console.log('loadBase64', fileName, base64String.length);
+  const chunks = [];
+  const bytes = atob(base64String);
+  console.log('bytes', bytes.length);
+  let totalCount = 0;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const slice = bytes.slice(offset, offset + chunkSize);
+    const array = new Uint8Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      array[i] = slice.charCodeAt(i);
+    }
+    chunks.push(array);
+    totalCount += array.length;
+  }
+  console.log('totalCount', totalCount);
+  const blob = new Blob(chunks, { type: 'application/octet-stream' });
+  const file = new File([blob], fileName);
+
+  if (proxyManager) {
+    loadFiles([file]).then((readers) => {
+      registerReadersToProxyManager(readers, proxyManager);
+    });
+    return Promise.resolve('loading');
+  }
+
+  return loadFiles([file]);
+}
+
+// ----------------------------------------------------------------------------
+
 export default {
   downloadDataset,
-  openFiles,
-  loadFiles,
-  registerReader,
   listReaders,
   listSupportedExtensions,
+  importBase64Dataset,
+  loadFiles,
+  loadFileSeries,
+  openFiles,
+  registerReader,
   registerReadersToProxyManager,
 };

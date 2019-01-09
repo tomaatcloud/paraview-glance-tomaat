@@ -16,7 +16,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kitware/paraview-glance.git"
+    "url": "https://github.com/kitware/paraview-glance.git"
   },
   "license": "BSD-3-Clause",
   "bugs": {
@@ -44,7 +44,7 @@
     "material-design-icons-iconfont": "3.0.3",
     "mousetrap": "^1.6.2",
     "typeface-roboto": "0.0.54",
-    "vtk.js": "7.8.4",
+    "vtk.js": "8.3.0",
     "vue": "2.5.16",
     "vuetify": "1.0.19",
     "vuex": "^3.0.1",
@@ -52,11 +52,11 @@
     "workbox-sw": "2.1.2"
   },
   "devDependencies": {
-    "babel-plugin-syntax-dynamic-import": "6.18.0",
+    "@babel/plugin-syntax-dynamic-import": "7.0.0",
     "eslint-plugin-vue": "4.5.0",
-    "kw-doc": "1.2.0",
-    "kw-web-suite": "6.2.0",
-    "paraview-glance": "2.7.0",
+    "kw-doc": "1.2.2",
+    "kw-web-suite": "8.0.0",
+    "paraview-glance": "3.0.1",
     "vue-loader": "15.2.4",
     "vue-style-loader": "4.1.0",
     "vue-template-compiler": "2.5.16",

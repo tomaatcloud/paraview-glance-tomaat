@@ -151,14 +151,21 @@ function createStore(proxyManager = null) {
                 return vtk(ds);
               }
               return ReaderFactory.downloadDataset(ds.name, ds.url)
+                .then((file) => ReaderFactory.loadFiles([file]))
+                .then((readers) => readers[0])
                 .then(({ dataset, reader }) => {
-                  if (reader) {
+                  if (reader && reader.getOutputData) {
                     const newDS = reader.getOutputData();
                     newDS.set(ds, true); // Attach remote data origin
                     return newDS;
-                  } else if (dataset && dataset.isA) {
+                  }
+                  if (dataset && dataset.isA) {
                     dataset.set(ds, true); // Attach remote data origin
                     return dataset;
+                  }
+                  if (reader && reader.setProxyManager) {
+                    reader.setProxyManager(state.proxyManager);
+                    return null;
                   }
                   throw new Error('Invalid dataset');
                 })
